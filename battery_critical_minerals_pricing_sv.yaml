@@ -1,0 +1,174 @@
+name: battery_critical_minerals_pricing_sv
+description: >
+  Semantic view for Benchmark Mineral Intelligence battery critical minerals pricing data.
+  Covers daily price assessments, OHLC exchange pricing, trend indicators, and supply/demand
+  forecasts across lithium-ion battery supply chain materials.
+
+tables:
+  - name: BATTERY_CRITICAL_MINERALS_PRICING
+    description: >
+      Daily price assessments and market data for critical minerals used in battery
+      and EV supply chains, including precious metals OHLC data from global exchanges.
+    base_table:
+      database: BENCHMARKMINERALS_DB
+      schema: PUBLIC
+      table: BATTERY_CRITICAL_MINERALS_PRICING
+
+    dimensions:
+      - name: MATERIAL
+        description: The mineral or material being assessed (e.g. Lithium, Cobalt, Nickel, Gold).
+        expr: MATERIAL
+        data_type: TEXT
+        sample_values:
+          - Lithium
+          - Cobalt
+          - Nickel
+          - Gold
+          - Silver
+          - Copper
+          - Palladium
+
+      - name: MATERIAL_GRADE
+        description: The specific grade or specification of the material (e.g. Battery Grade, Sponge 99.95%).
+        expr: MATERIAL_GRADE
+        data_type: TEXT
+
+      - name: REGION
+        description: Geographic region for the price assessment.
+        expr: REGION
+        data_type: TEXT
+        sample_values:
+          - Global
+          - China
+          - Europe
+          - Asia Pacific
+          - USA
+
+      - name: EXCHANGE
+        description: The exchange or pricing source (e.g. COMEX, LBMA, LME, OTC).
+        expr: EXCHANGE
+        data_type: TEXT
+        sample_values:
+          - COMEX
+          - LBMA
+          - LME
+          - NYMEX
+          - OTC
+          - SGE
+          - TOCOM
+          - MCX
+          - Johnson Matthey
+
+      - name: PRIMARY_APPLICATION
+        description: Primary industrial application for the material.
+        expr: PRIMARY_APPLICATION
+        data_type: TEXT
+
+      - name: SOURCE_TYPE
+        description: The source type for the material (e.g. Mine, Recycled).
+        expr: SOURCE_TYPE
+        data_type: TEXT
+
+      - name: CURRENCY
+        description: Currency denomination for prices, defaults to USD.
+        expr: CURRENCY
+        data_type: TEXT
+
+      - name: FORECAST_DEMAND_5Y
+        description: Five-year demand forecast outlook level.
+        expr: FORECAST_DEMAND_5Y
+        data_type: TEXT
+        sample_values:
+          - Very High
+          - High
+          - Medium
+          - Low
+
+      - name: SUPPLY_RISK
+        description: Supply risk assessment level for the material.
+        expr: SUPPLY_RISK
+        data_type: TEXT
+        sample_values:
+          - Very High
+          - High
+          - Medium
+          - Low
+
+    time_dimensions:
+      - name: ASSESSMENT_DATE
+        description: The date of the price assessment.
+        expr: ASSESSMENT_DATE
+        data_type: DATE
+
+    facts:
+      - name: PRICE_USD_PER_TONNE
+        description: Assessed price in US dollars per metric tonne.
+        expr: PRICE_USD_PER_TONNE
+        data_type: NUMBER
+        synonyms:
+          - price per tonne
+          - tonne price
+
+      - name: PRICE_USD_PER_KG
+        description: Assessed price in US dollars per kilogram.
+        expr: PRICE_USD_PER_KG
+        data_type: NUMBER
+        synonyms:
+          - price per kg
+          - kilogram price
+
+      - name: TREND_PCT
+        description: Short-term price trend as a percentage.
+        expr: TREND_PCT
+        data_type: NUMBER
+        synonyms:
+          - trend
+          - price trend
+
+      - name: MONTH_OVER_MONTH_CHANGE_PCT
+        description: Month-over-month price change as a percentage.
+        expr: MONTH_OVER_MONTH_CHANGE_PCT
+        data_type: NUMBER
+        synonyms:
+          - MoM change
+          - monthly change
+
+      - name: YEAR_OVER_YEAR_CHANGE_PCT
+        description: Year-over-year price change as a percentage.
+        expr: YEAR_OVER_YEAR_CHANGE_PCT
+        data_type: NUMBER
+        synonyms:
+          - YoY change
+          - annual change
+
+      - name: PRICE_OPEN_USD_PER_OZ
+        description: Opening price in US dollars per troy ounce (precious metals).
+        expr: PRICE_OPEN_USD_PER_OZ
+        data_type: NUMBER
+        synonyms:
+          - open price
+          - opening price
+
+      - name: PRICE_CLOSE_USD_PER_OZ
+        description: Closing price in US dollars per troy ounce (precious metals).
+        expr: PRICE_CLOSE_USD_PER_OZ
+        data_type: NUMBER
+        synonyms:
+          - close price
+          - closing price
+
+      - name: PRICE_HIGH_USD_PER_OZ
+        description: Daily high price in US dollars per troy ounce (precious metals).
+        expr: PRICE_HIGH_USD_PER_OZ
+        data_type: NUMBER
+        synonyms:
+          - high price
+          - daily high
+
+      - name: PRICE_LOW_USD_PER_OZ
+        description: Daily low price in US dollars per troy ounce (precious metals).
+        expr: PRICE_LOW_USD_PER_OZ
+        data_type: NUMBER
+        synonyms:
+          - low price
+          - daily low

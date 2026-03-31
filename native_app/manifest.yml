@@ -1,0 +1,11 @@
+manifest_version: 1
+
+version:
+  name: V1
+  label: "Benchmark Minerals Intelligence v1"
+  comment: "Critical minerals pricing dashboard with Streamlit UI"
+
+artifacts:
+  readme: readme.md
+  setup_script: scripts/setup.sql
+  default_streamlit: APP_UI.BENCHMARK_MINERALS_DASHBOARD

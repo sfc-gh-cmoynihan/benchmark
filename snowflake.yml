@@ -1,0 +1,14 @@
+definition_version: 2
+entities:
+  benchmark_minerals_dashboard:
+    type: streamlit
+    identifier:
+      name: Benchmark_Minerals_Dashboard
+      database: BENCHMARKMINERALS_DB
+      schema: PUBLIC
+    query_warehouse: ADHOC_WH
+    external_access_integrations:
+      - METALS_PRICING_ACCESS_INTEGRATION
+    main_file: bmd_streamlit_app.py
+    artifacts:
+      - bmd_streamlit_app.py

@@ -1,0 +1,55 @@
+roles:
+  - app_user:
+      comment: "Read-only access to Benchmark Minerals data and agent"
+  - app_admin:
+      comment: "Full access to all shared objects"
+
+application_content:
+  notebooks:
+    - benchmark_dashboard:
+        main_file: BENCHMARK_DASHBOARD.ipynb
+        comment: "Benchmark Minerals Intelligence - Interactive pricing dashboard"
+        runtime_environment_version: stable
+        roles: [app_user, app_admin]
+
+shared_content:
+  databases:
+    - BENCHMARKMINERALS_DB:
+        schemas:
+          - AGENT_SCHEMA:
+              roles: [app_user, app_admin]
+
+              cortex_agents:
+                - BENCHMARK_MINERALS_AGENT:
+                    roles: [app_user, app_admin]
+
+          - PUBLIC:
+              roles: [app_user, app_admin]
+
+              tables:
+                - BATTERY_CRITICAL_MINERALS_PRICING:
+                    roles: [app_user, app_admin]
+                - MARKET_INDICES:
+                    roles: [app_user, app_admin]
+                - BATTERY_SUPPLY_CHAIN:
+                    roles: [app_user, app_admin]
+                - MINING_OPERATIONS:
+                    roles: [app_user, app_admin]
+                - MINERAL_PRICE_ASSESSMENTS:
+                    roles: [app_user, app_admin]
+                - SUPPLY_DEMAND_FORECASTS:
+                    roles: [app_user, app_admin]
+                - BATTERY_CELL_MANUFACTURERS:
+                    roles: [app_user, app_admin]
+                - ANALYST_REPORT_CHUNKS:
+                    roles: [app_user, app_admin]
+
+              semantic_views:
+                - BATTERY_CRITICAL_MINERALS_PRICING_SV:
+                    roles: [app_user, app_admin]
+                - MARKET_INDICES_SV:
+                    roles: [app_user, app_admin]
+
+              cortex_search_services:
+                - ANALYST_REPORTS_SEARCH:
+                    roles: [app_user, app_admin]

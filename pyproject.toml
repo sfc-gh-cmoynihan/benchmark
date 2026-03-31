@@ -1,0 +1,11 @@
+[project]
+name = "benchmark-minerals-intelligence"
+version = "1.0.0"
+description = "Benchmark Minerals Intelligence - Critical minerals pricing dashboard and Cortex Agent"
+requires-python = ">=3.11"
+dependencies = [
+    "snowflake-connector-python>=3.3.0",
+    "streamlit>=1.35.0",
+    "altair",
+    "pandas",
+]
