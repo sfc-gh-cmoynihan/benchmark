@@ -7,3 +7,10 @@ dist/
 build/
 .env
 output/
+
+# Generated Word documents and temp files
+*.docx
+~$*
+
+# PDF demo script (source is Demo Script.md)
+Demo Script.pdf

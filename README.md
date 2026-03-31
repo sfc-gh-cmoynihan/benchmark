@@ -2,6 +2,56 @@
 
 A complete Snowflake data product showcasing Native Apps, Cortex AI, and cross-cloud Marketplace deployment — built entirely with [Cortex Code](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code).
 
+## Getting Started with CoCo CLI
+
+### Prerequisites
+
+- [Snowflake CLI](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) (`snow`) installed
+- [Cortex Code CLI](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli) (`cortex`) installed
+- A Snowflake connection configured in `~/.snowflake/connections.toml`
+
+### Install CoCo CLI
+
+```bash
+# macOS / Linux
+curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh | sh
+
+# Windows (PowerShell)
+irm https://ai.snowflake.com/static/cc-scripts/install.ps1 | iex
+```
+
+### Clone & Explore
+
+```bash
+git clone https://github.com/sfc-gh-cmoynihan/benchmark.git
+cd benchmark
+cortex
+```
+
+Once inside CoCo, try:
+
+```
+What does this project do?
+Deploy the Streamlit app
+Show me the Cortex Agent spec
+What data is in the pricing table?
+```
+
+### Deploy the Streamlit App
+
+```bash
+snow streamlit deploy --replace --connection <your_connection>
+```
+
+### Test the Cortex Agent
+
+```sql
+SELECT SNOWFLAKE.CORTEX.AGENT(
+  'BENCHMARKMINERALS_DB.PUBLIC.ASK_BENCHMARK',
+  'What is the latest gold price?'
+);
+```
+
 ## What It Does
 
 Benchmark Minerals Intelligence tracks daily pricing for critical minerals (lithium, cobalt, nickel, gold, platinum and more) across global exchanges. This project packages that data with AI-powered analytics into a single Native App distributed via the Snowflake Marketplace.
@@ -14,7 +64,7 @@ Provider (IE_DEMO10 — AWS Ireland)
 │   ├── PUBLIC
 │   │   ├── 8 Tables (pricing, indices, mining, supply chain, manufacturers, analyst reports)
 │   │   ├── 2 Semantic Views (Cortex Analyst — natural language to SQL)
-│   │   └── 1 Cortex Search Service (10 analyst PDFs, 731 chunks)
+│   │   └── 1 Cortex Search Service (10 analyst PDFs, 84 chunks)
 │   └── AGENT_SCHEMA
 │       └── Cortex Agent (4 tools: pricing, indices, live prices, analyst search)
 ├── Streamlit Dashboard (interactive charts + embedded AI chat)
@@ -105,44 +155,25 @@ Published once from Ireland — Snowflake handles replication to all consumer re
 
 ```
 .
-├── bmd_streamlit_app.py                 # Provider Streamlit app (deployed to SiS)
-├── snowflake.yml                        # Snow CLI deployment config
-├── manifest.yml                         # Marketplace listing manifest
-├── ask_benchmark_spec.json              # Cortex Agent specification
-├── battery_critical_minerals_pricing_sv.yaml  # Semantic View definition
-├── BENCHMARK_DASHBOARD.ipynb            # Notebook (shared via app package)
-├── Demo Script.md                       # Full demo walkthrough (~25 min)
-├── Demo Script.pdf                      # PDF version of demo script
-├── analyst_reports/                     # 10 analyst PDFs (indexed by Cortex Search)
+├── bmd_streamlit_app.py                      # Provider Streamlit app (deployed to SiS)
+├── snowflake.yml                             # Snow CLI deployment config
+├── manifest.yml                              # Marketplace listing manifest
+├── ask_benchmark_spec.json                   # Cortex Agent specification
+├── battery_critical_minerals_pricing_sv.yaml # Semantic View definition
+├── BENCHMARK_DASHBOARD.ipynb                 # Notebook (shared via app package)
+├── AGENTS.md                                 # CoCo CLI project context
+├── Demo Script.md                            # Full demo walkthrough (~25 min)
+├── analyst_reports/                          # 10 analyst PDFs (indexed by Cortex Search)
 ├── native_app/
-│   ├── manifest.yml                     # App package manifest
-│   ├── readme.md                        # Consumer-facing readme
-│   ├── scripts/setup.sql                # Creates CORE schema + views
+│   ├── manifest.yml                          # App package manifest
+│   ├── readme.md                             # Consumer-facing readme
+│   ├── scripts/setup.sql                     # Creates CORE schema + views
 │   └── code_artifacts/streamlit/
-│       ├── streamlit_app.py             # Consumer Streamlit app
-│       └── environment.yml              # Conda environment
+│       ├── streamlit_app.py                  # Consumer Streamlit app
+│       └── environment.yml                   # Conda environment
 └── pyproject.toml
-```
-
-## Deploying
-
-### Streamlit App (Provider)
-
-```bash
-snow streamlit deploy --replace --connection <your_connection>
-```
-
-### Native App Package
-
-Upload the `native_app/` directory to a stage and create the application package:
-
-```sql
-CREATE APPLICATION PACKAGE BENCHMARK_MINERALS_NATIVE_APP_PKG;
--- Upload native_app/* to the package stage, then:
-ALTER APPLICATION PACKAGE BENCHMARK_MINERALS_NATIVE_APP_PKG
-  ADD VERSION V1 USING '@stage_path';
 ```
 
 ## Built With
 
-This entire project — data, AI, app, and distribution — was built through conversations with **Cortex Code (CoCo)**, Snowflake's AI-powered development CLI.
+This entire project — data, AI, app, and distribution — was built through conversations with **[Cortex Code (CoCo)](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli)**, Snowflake's AI-powered development CLI.
