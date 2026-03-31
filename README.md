@@ -21,6 +21,73 @@ Provider (IE_DEMO10 — AWS Ireland)
 └── Native App Package → Marketplace Listing → Cross-cloud replication
 ```
 
+## Cortex Search
+
+10 analyst reports from leading financial institutions are parsed, chunked, and indexed using Cortex Search for RAG-based retrieval.
+
+**Reports indexed:**
+- Goldman Sachs — Gold $5,000 thesis (2026)
+- World Gold Council — 2026 Outlook
+- WisdomTree — Gold Outlook Q2 2026 (US & Global)
+- Sprott — Gold Outlook 2026
+- Heraeus — Precious Metals Forecast 2026
+- WPIC — Platinum Outlook 2026
+- HDFC Securities — Precious Metals Outlook 2026
+- SSGA — Monthly Gold Monitor (March 2026)
+- VTC Research — Gold Price Update 2026
+
+PDFs are processed with `PARSE_DOCUMENT`, split into chunks, and stored in `BENCHMARKMINERALS_DB.UNSTRUCTURED.DOCS_CHUNKS_TABLE`. The Cortex Search service (`ANALYST_REPORTS_SEARCH`) enables natural language queries across all reports, powering the `search_analyst_reports` tool in the Cortex Agent.
+
+## Native App
+
+The entire data product is packaged as a Snowflake Native App for distribution via the Marketplace.
+
+### What's in the Package
+
+The listing manifest (`manifest.yml`) uses **declarative sharing** to share data and AI services without copying data:
+
+| Shared Object | Type |
+|---------------|------|
+| 8 Tables | Pricing, indices, mining, supply chain, manufacturers, analyst reports |
+| 2 Semantic Views | `BATTERY_CRITICAL_MINERALS_PRICING_SV`, `MARKET_INDICES_SV` |
+| 1 Cortex Search Service | `ANALYST_REPORTS_SEARCH` |
+| 1 Cortex Agent | `BENCHMARK_MINERALS_AGENT` (4 tools) |
+| 1 Notebook | `BENCHMARK_DASHBOARD.ipynb` |
+
+### App Package Structure
+
+The app package (`native_app/`) contains:
+
+- **`manifest.yml`** — App version, setup script, default Streamlit
+- **`scripts/setup.sql`** — Creates an `APP_PUBLIC` role, a `CORE` schema with views over `SHARED_DATA`, and deploys the consumer Streamlit dashboard
+- **`code_artifacts/streamlit/streamlit_app.py`** — Consumer-facing dashboard that queries data through the `CORE` schema views
+- **`readme.md`** — Consumer-facing documentation
+
+### Consumer Experience
+
+When a consumer installs the app, `setup.sql` runs automatically:
+
+1. Creates application role `APP_PUBLIC`
+2. Creates `CORE` schema with views over the shared data (e.g. `CORE.BATTERY_CRITICAL_MINERALS_PRICING`)
+3. Deploys the Streamlit dashboard (`APP_UI.BENCHMARK_MINERALS_DASHBOARD`)
+4. Grants all permissions to `APP_PUBLIC`
+
+Consumers can query shared tables directly or use the built-in Streamlit dashboard.
+
+## Marketplace Listing
+
+The Native App is published to the Snowflake Marketplace as an external listing with cross-cloud auto-fulfillment:
+
+| Property | Value |
+|----------|-------|
+| **Listing** | `BENCHMARK_MINERALS_APP_LISTING` |
+| **Type** | External (Marketplace) |
+| **Fulfillment** | `SUB_DATABASE_WITH_REFERENCE_USAGE` |
+| **Provider** | IE_DEMO10 — AWS EU-West-1 (Ireland) |
+| **Consumers** | AWS US-West-2 (Oregon), Azure West-EU (Netherlands) |
+
+Published once from Ireland — Snowflake handles replication to all consumer regions automatically.
+
 ## Key Snowflake Features
 
 | Feature | Usage |
@@ -28,7 +95,7 @@ Provider (IE_DEMO10 — AWS Ireland)
 | **Native Apps** | Application package with Streamlit UI, setup scripts, shared data |
 | **Declarative Sharing** | Tables, Semantic Views, Cortex Search, Agent — shared without copying data |
 | **Cortex Analyst** | Natural language queries via Semantic Views |
-| **Cortex Search** | 10 analyst PDFs from Goldman Sachs, WGC, Sprott, WPIC and others |
+| **Cortex Search** | 10 analyst PDFs indexed for RAG retrieval |
 | **Cortex Agent** | Multi-tool AI analyst combining structured + unstructured data |
 | **Streamlit in Snowflake** | Dashboard with agent chat sidebar and live price lookup |
 | **External Access** | Live metal prices from MetalPriceAPI |
