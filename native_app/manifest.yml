@@ -1,9 +1,9 @@
 manifest_version: 1
 
 version:
-  name: V1
-  label: "Benchmark Minerals Intelligence v1"
-  comment: "Critical minerals pricing dashboard with Streamlit UI"
+  name: V2
+  label: "Benchmark Minerals Intelligence v2"
+  comment: "Pricing dashboard with AI agent chat"
 
 artifacts:
   readme: readme.md

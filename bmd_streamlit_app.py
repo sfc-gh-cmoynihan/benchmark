@@ -19,24 +19,24 @@ st.set_page_config(
 session = get_active_session()
 
 SAMPLE_QUESTIONS = [
-    "What is the latest gold price?",
+    "What is the latest copper price?",
     "Compare lithium and cobalt prices over the last 6 months",
     "Which metal had the biggest price increase this year?",
     "What are the top 5 most expensive metals right now?",
     "Show me the price trend for platinum on LBMA",
     "How has the price of nickel changed month over month?",
     "What exchanges track palladium pricing?",
-    "What is the average copper price by exchange?",
+    "What is the average copper price by region?",
     "Which materials have the most price volatility?",
     "What rare earths pricing data is available?",
-    "What is Goldman Sachs' gold price forecast for 2026?",
-    "What does the World Gold Council outlook say about gold demand?",
-    "What is the platinum market outlook from WPIC?",
-    "Summarise the key risks highlighted in the Sprott gold outlook",
-    "What are analysts predicting for precious metals prices this year?",
+    "What is the copper price trend over the last 3 months?",
+    "How does copper compare to lithium in price performance?",
+    "What is the supply risk rating for copper?",
+    "What are analysts predicting for copper prices this year?",
+    "What are the key risks for battery minerals supply chains?",
 ]
 
-TABLE = "BENCHMARKMINERALS_DB.PUBLIC.BATTERY_CRITICAL_MINERALS_PRICING"
+TABLE = "BENCHMARKMINERALS_DB.PUBLIC.BATTERY_CRITICAL_MINERALS_PRICING_IT"
 
 def call_agent(question, messages_history):
     history_json = json.dumps(messages_history) if messages_history else "[]"
@@ -53,7 +53,6 @@ st.markdown(
     div[data-testid="stHorizontalBlock"] {
         align-items: flex-end;
     }
-    /* Push the chat button down to align with selectbox inputs */
     div[data-testid="stHorizontalBlock"] div[data-testid="column"]:last-child div[data-testid="stButton"] {
         margin-top: 24px;
     }
@@ -83,8 +82,7 @@ if st.session_state.show_agent:
             st.session_state.agent_messages = []
             safe_rerun()
         for msg in st.session_state.agent_messages:
-            role = msg["role"]
-            if role == "user":
+            if msg["role"] == "user":
                 st.markdown(
                     f'<div style="background:#e3f2fd;padding:10px 14px;border-radius:12px;margin:6px 0 2px 20px;text-align:right;"><b>You</b><br/>{msg["content"]}</div>',
                     unsafe_allow_html=True,
@@ -115,26 +113,20 @@ if st.session_state.show_agent:
 
 st.title("Precious Metals & Critical Minerals Daily Pricing")
 
-
 @st.cache_data(ttl=3600)
 def load_filter_options():
-    meta = session.sql(f"""
+    result = session.sql(f"""
         SELECT
             MIN(ASSESSMENT_DATE) AS MIN_DATE,
-            MAX(ASSESSMENT_DATE) AS MAX_DATE
+            MAX(ASSESSMENT_DATE) AS MAX_DATE,
+            ARRAY_AGG(DISTINCT MATERIAL) WITHIN GROUP (ORDER BY MATERIAL) AS MATERIALS,
+            ARRAY_AGG(DISTINCT EXCHANGE) WITHIN GROUP (ORDER BY EXCHANGE) AS EXCHANGES
         FROM {TABLE}
         WHERE PRICE_CLOSE_USD_PER_OZ IS NOT NULL
     """).to_pandas()
-    materials = session.sql(f"""
-        SELECT DISTINCT MATERIAL FROM {TABLE}
-        WHERE PRICE_CLOSE_USD_PER_OZ IS NOT NULL ORDER BY MATERIAL
-    """).to_pandas()["MATERIAL"].tolist()
-    exchanges = session.sql(f"""
-        SELECT DISTINCT EXCHANGE FROM {TABLE}
-        WHERE PRICE_CLOSE_USD_PER_OZ IS NOT NULL ORDER BY EXCHANGE
-    """).to_pandas()["EXCHANGE"].tolist()
-    return meta["MIN_DATE"].iloc[0], meta["MAX_DATE"].iloc[0], materials, exchanges
-
+    materials = json.loads(result["MATERIALS"].iloc[0])
+    exchanges = json.loads(result["EXCHANGES"].iloc[0])
+    return result["MIN_DATE"].iloc[0], result["MAX_DATE"].iloc[0], materials, exchanges
 
 min_date_val, max_date_val, all_metals, all_exchanges = load_filter_options()
 min_date = pd.Timestamp(min_date_val).date()
@@ -179,6 +171,37 @@ def load_filtered_data(_date_from, _date_to, _metals, _exchanges):
     df["ASSESSMENT_DATE"] = pd.to_datetime(df["ASSESSMENT_DATE"])
     return df
 
+@st.cache_data(ttl=600)
+def load_daily_changes(_date_from, _date_to):
+    return session.sql(f"""
+        WITH ranked AS (
+            SELECT MATERIAL, ASSESSMENT_DATE, AVG(PRICE_CLOSE_USD_PER_OZ) AS AVG_CLOSE,
+                   ROW_NUMBER() OVER (PARTITION BY MATERIAL ORDER BY ASSESSMENT_DATE DESC) AS rn
+            FROM {TABLE}
+            WHERE PRICE_CLOSE_USD_PER_OZ IS NOT NULL
+              AND ASSESSMENT_DATE BETWEEN '{_date_from}' AND '{_date_to}'
+            GROUP BY MATERIAL, ASSESSMENT_DATE
+        )
+        SELECT
+            c.MATERIAL AS "Material",
+            ROUND(c.AVG_CLOSE - p.AVG_CLOSE, 2) AS "Daily Change",
+            ROUND((c.AVG_CLOSE - p.AVG_CLOSE) / NULLIF(p.AVG_CLOSE, 0) * 100, 2) AS "Change %"
+        FROM ranked c
+        JOIN ranked p ON c.MATERIAL = p.MATERIAL AND c.rn = 1 AND p.rn = 2
+        ORDER BY c.MATERIAL
+    """).to_pandas()
+
+@st.cache_data(ttl=600)
+def generate_csv():
+    all_raw = session.sql(f"""
+        SELECT ASSESSMENT_DATE AS "Date", MATERIAL AS "Metal", EXCHANGE AS "Exchange",
+               PRICE_OPEN_USD_PER_OZ AS "Open", PRICE_CLOSE_USD_PER_OZ AS "Close",
+               PRICE_HIGH_USD_PER_OZ AS "High", PRICE_LOW_USD_PER_OZ AS "Low"
+        FROM {TABLE}
+        WHERE PRICE_CLOSE_USD_PER_OZ IS NOT NULL
+        ORDER BY ASSESSMENT_DATE
+    """).to_pandas()
+    return all_raw.to_csv(index=False).encode("utf-8")
 
 filtered = load_filtered_data(str(date_from), str(date_to), tuple(selected_metals), tuple(selected_exchanges))
 
@@ -209,26 +232,6 @@ else:
     st.altair_chart(chart, use_container_width=True)
 
     st.subheader("Daily Change Heatmap")
-
-    @st.cache_data(ttl=600)
-    def load_daily_changes(_date_from, _date_to):
-        return session.sql(f"""
-            WITH ranked AS (
-                SELECT MATERIAL, ASSESSMENT_DATE, AVG(PRICE_CLOSE_USD_PER_OZ) AS AVG_CLOSE,
-                       ROW_NUMBER() OVER (PARTITION BY MATERIAL ORDER BY ASSESSMENT_DATE DESC) AS rn
-                FROM {TABLE}
-                WHERE PRICE_CLOSE_USD_PER_OZ IS NOT NULL
-                  AND ASSESSMENT_DATE BETWEEN '{_date_from}' AND '{_date_to}'
-                GROUP BY MATERIAL, ASSESSMENT_DATE
-            )
-            SELECT
-                c.MATERIAL AS "Material",
-                ROUND(c.AVG_CLOSE - p.AVG_CLOSE, 2) AS "Daily Change",
-                ROUND((c.AVG_CLOSE - p.AVG_CLOSE) / NULLIF(p.AVG_CLOSE, 0) * 100, 2) AS "Change %"
-            FROM ranked c
-            JOIN ranked p ON c.MATERIAL = p.MATERIAL AND c.rn = 1 AND p.rn = 2
-            ORDER BY c.MATERIAL
-        """).to_pandas()
 
     summary = load_daily_changes(str(date_from), str(date_to))
 
@@ -295,60 +298,48 @@ else:
         })
         st.dataframe(raw_df, use_container_width=True)
 
-    if st.button("Download Complete Dataset (CSV)"):
-        @st.cache_data(ttl=600)
-        def generate_csv():
-            all_raw = session.sql(f"""
-                SELECT ASSESSMENT_DATE AS "Date", MATERIAL AS "Metal", EXCHANGE AS "Exchange",
-                       PRICE_OPEN_USD_PER_OZ AS "Open", PRICE_CLOSE_USD_PER_OZ AS "Close",
-                       PRICE_HIGH_USD_PER_OZ AS "High", PRICE_LOW_USD_PER_OZ AS "Low"
-                FROM {TABLE}
-                WHERE PRICE_CLOSE_USD_PER_OZ IS NOT NULL
-                ORDER BY ASSESSMENT_DATE
-            """).to_pandas()
-            return all_raw.to_csv(index=False).encode("utf-8")
-        csv_data = generate_csv()
-        st.download_button(
-            "Click to Download",
-            data=csv_data,
-            file_name="benchmark_minerals_pricing.csv",
-            mime="text/csv",
-        )
+    csv_data = generate_csv()
+    st.download_button(
+        "Download Complete Dataset (CSV)",
+        data=csv_data,
+        file_name="benchmark_minerals_pricing.csv",
+        mime="text/csv",
+    )
 
     st.caption(f"Showing {len(filtered):,} records")
 
     st.divider()
     st.subheader("Live Price Lookup")
 
-    available_commodities = ["Gold", "Palladium", "Platinum", "Silver"]
-
-    live_col1, live_col2, _ = st.columns([3, 3, 4])
-    with live_col1:
-        lookup_metal = st.selectbox("Commodity", available_commodities)
-    with live_col2:
-        st.write("")
-        st.write("")
-        fetch_btn = st.button("Get Latest Price", key="fetch_live_btn")
-    st.markdown(
-        '<style>#root div[data-testid="stButton"]:has(button[key="fetch_live_btn"]) button '
-        '{background-color:#29B5E8 !important;color:white !important;border:none !important;}</style>',
-        unsafe_allow_html=True,
-    )
-
-    if fetch_btn:
-        with st.spinner(f"Fetching live {lookup_metal} price..."):
-            try:
-                result = session.call(
-                    "BENCHMARKMINERALS_DB.PUBLIC.FETCH_LIVE_METAL_PRICE",
-                    lookup_metal,
-                )
-                data = json.loads(result) if isinstance(result, str) else result
-                if data.get("price"):
-                    price = data["price"]
-                    time_str = data.get("timestamp", "N/A")
-                    exchange = data.get("exchange", "N/A")
-                    st.markdown(
-                        f"""
+    @st.fragment
+    def live_price_lookup():
+        available_commodities = ["Gold", "Palladium", "Platinum", "Silver"]
+        live_col1, live_col2, _ = st.columns([3, 3, 4])
+        with live_col1:
+            lookup_metal = st.selectbox("Commodity", available_commodities)
+        with live_col2:
+            st.write("")
+            st.write("")
+            fetch_btn = st.button("Get Latest Price", key="fetch_live_btn")
+        st.markdown(
+            '<style>#root div[data-testid="stButton"]:has(button[key="fetch_live_btn"]) button '
+            '{background-color:#29B5E8 !important;color:white !important;border:none !important;}</style>',
+            unsafe_allow_html=True,
+        )
+        if fetch_btn:
+            with st.spinner(f"Fetching live {lookup_metal} price..."):
+                try:
+                    result = session.call(
+                        "BENCHMARKMINERALS_DB.PUBLIC.FETCH_LIVE_METAL_PRICE",
+                        lookup_metal,
+                    )
+                    data = json.loads(result) if isinstance(result, str) else result
+                    if data.get("price"):
+                        price = data["price"]
+                        time_str = data.get("timestamp", "N/A")
+                        exchange = data.get("exchange", "N/A")
+                        st.markdown(
+                            f"""
 <div style="background:#f8f9fb;border:1px solid #dfe3e8;border-radius:10px;padding:20px 28px;margin-top:8px;">
   <div style="display:flex;gap:48px;flex-wrap:wrap;">
     <div><span style="color:#6b7280;font-size:0.85rem;">Material</span><br/><span style="font-size:1.25rem;font-weight:600;">{lookup_metal}</span></div>
@@ -357,9 +348,11 @@ else:
     <div><span style="color:#6b7280;font-size:0.85rem;">Exchange</span><br/><span style="font-size:1.25rem;font-weight:600;">{exchange}</span></div>
   </div>
 </div>""",
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.error(data.get("error", "Could not retrieve price."))
-            except Exception as e:
-                st.error(f"Error: {e}")
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        st.error(data.get("error", "Could not retrieve price."))
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+    live_price_lookup()

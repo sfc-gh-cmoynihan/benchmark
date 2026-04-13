@@ -120,7 +120,7 @@ erDiagram
 
 - Show `BATTERY_CRITICAL_MINERALS_PRICING_SV` and `MARKET_INDICES_SV`
 - Open **Cortex Analyst** and ask:
-  - *"What is the latest gold price?"*
+  - *"What is the latest copper price?"*
   - *"Compare lithium and cobalt prices over the last 6 months"*
   - *"Which metal had the biggest price increase this year?"*
 - Show the generated SQL — Semantic Views map business terms to physical columns
@@ -163,7 +163,7 @@ flowchart TB
 - Show `BENCHMARK_MINERALS_AGENT` in `AGENT_SCHEMA`
 - Open **Snowflake Intelligence** and interact:
   - *"What are the top 5 most expensive metals right now?"* → routes to Analyst
-  - *"Summarise the key risks in the Sprott gold outlook"* → routes to Search
+  - *"What is the copper price trend over the last 3 months?"* → routes to Analyst
   - *"Compare lithium and cobalt — price trend and analyst views?"* → multi-tool
 
 ### 2.4 Streamlit App with Embedded Agent
@@ -434,7 +434,7 @@ flowchart LR
   - *"Show me the tables in BENCHMARKMINERALS_DB"* — instant SQL
   - *"What's in the Cortex Agent?"* — describes agent config
   - *"Add a new sample question to the Streamlit app"* — edits code directly
-  - *"What's the average gold price this month?"* — calls Cortex Analyst
+  - *"What's the average copper price this month?"* — calls Cortex Analyst
 - Key capabilities:
   - **Multi-tool orchestration** — reads files, runs SQL, writes code, deploys in one conversation
   - **Persistent memory** — remembers project context across sessions
@@ -449,19 +449,20 @@ flowchart LR
 ## Appendix: Sample Questions for Live Demo
 
 **Structured Data (Cortex Analyst):**
-1. What is the latest gold price?
+1. What is the latest copper price?
 2. Compare lithium and cobalt prices over the last 6 months
 3. Which metal had the biggest price increase this year?
 4. What are the top 5 most expensive metals right now?
-5. Show me the price trend for platinum on LBMA
+5. Show me the copper price trend over the last 3 months
 
 **Unstructured Data (Cortex Search):**
 1. What is Goldman Sachs' gold price forecast for 2026?
 2. What does the World Gold Council outlook say about gold demand?
 3. What is the platinum market outlook from WPIC?
 4. Summarise the key risks highlighted in the Sprott gold outlook
-5. What are analysts predicting for precious metals prices this year?
+5. What are analysts predicting for copper and precious metals prices this year?
 
 **Multi-Tool (Agent):**
-1. Compare lithium prices and what analysts are saying about the lithium market
+1. Compare copper and lithium prices over the last 6 months
 2. How has nickel performed and what's the supply outlook?
+3. What is the copper price trend and how does it compare to cobalt?

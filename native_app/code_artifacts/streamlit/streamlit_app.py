@@ -1,47 +1,125 @@
 import streamlit as st
 import altair as alt
 import pandas as pd
+import json
 from snowflake.snowpark.context import get_active_session
+
+def safe_rerun():
+    if hasattr(st, "rerun"):
+        st.rerun()
+    else:
+        st.experimental_rerun()
 
 session = get_active_session()
 
 TABLE = "CORE.BATTERY_CRITICAL_MINERALS_PRICING"
+
+SAMPLE_QUESTIONS = [
+    "What is the latest copper price?",
+    "Compare lithium and cobalt prices over the last 6 months",
+    "Which metal had the biggest price increase this year?",
+    "What are the top 5 most expensive metals right now?",
+    "Show me the price trend for platinum on LBMA",
+    "What does the World Gold Council outlook say about gold demand?",
+    "What is Goldman Sachs' gold price forecast for 2026?",
+    "What are analysts predicting for copper prices this year?",
+    "Summarise the key risks highlighted in the Sprott gold outlook",
+]
+
+def call_agent(question, messages_history):
+    history_json = json.dumps(messages_history) if messages_history else "[]"
+    result = session.call("CORE.CALL_ASK_BENCHMARK_AGENT", question, history_json)
+    return result if result else "No response from agent."
+
+if "agent_messages" not in st.session_state:
+    st.session_state.agent_messages = []
+if "show_agent" not in st.session_state:
+    st.session_state.show_agent = False
 
 st.markdown(
     """<style>
     div[data-testid="stHorizontalBlock"] {
         align-items: flex-end;
     }
+    div[data-testid="stHorizontalBlock"] div[data-testid="column"]:last-child div[data-testid="stButton"] {
+        margin-top: 24px;
+    }
+    div.floating-chat-container button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 50px !important;
+        padding: 8px 20px !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 4px 15px rgba(102,126,234,0.4) !important;
+    }
+    div.floating-chat-container button:hover {
+        box-shadow: 0 6px 20px rgba(102,126,234,0.6) !important;
+    }
     </style>""",
     unsafe_allow_html=True,
 )
+
+if st.session_state.show_agent:
+    with st.sidebar:
+        st.subheader("Lets Chat")
+        if st.button("Clear Chat", key="clear_agent"):
+            st.session_state.agent_messages = []
+            safe_rerun()
+        for msg in st.session_state.agent_messages:
+            if msg["role"] == "user":
+                st.markdown(
+                    f'<div style="background:#e3f2fd;padding:10px 14px;border-radius:12px;margin:6px 0 2px 20px;text-align:right;"><b>You</b><br/>{msg["content"]}</div>',
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.markdown(
+                    f'<div style="background:#f5f5f5;padding:10px 14px;border-radius:12px;margin:2px 20px 6px 0;"><b>Benchmark</b><br/>{msg["content"]}</div>',
+                    unsafe_allow_html=True,
+                )
+        if not st.session_state.agent_messages:
+            st.caption("Try asking:")
+            for sq in SAMPLE_QUESTIONS[:5]:
+                if st.button(sq, key=f"sq_{sq}", use_container_width=True):
+                    st.session_state.agent_messages.append({"role": "user", "content": sq})
+                    with st.spinner("Thinking..."):
+                        answer = call_agent(sq, [])
+                    st.session_state.agent_messages.append({"role": "assistant", "content": answer})
+                    safe_rerun()
+        with st.form("agent_form", clear_on_submit=True):
+            prompt = st.text_input("Ask about minerals, pricing, indices...", key="agent_input")
+            submitted = st.form_submit_button("Send")
+            if submitted and prompt:
+                st.session_state.agent_messages.append({"role": "user", "content": prompt})
+                with st.spinner("Thinking..."):
+                    answer = call_agent(prompt, st.session_state.agent_messages[:-1])
+                st.session_state.agent_messages.append({"role": "assistant", "content": answer})
+                safe_rerun()
 
 st.title(":chart_with_upwards_trend: Benchmark Minerals Intelligence")
 st.subheader("Precious Metals & Critical Minerals Daily Pricing")
 
 
 def load_filter_options():
-    meta = session.sql(f"""
-        SELECT MIN(ASSESSMENT_DATE) AS MIN_DATE, MAX(ASSESSMENT_DATE) AS MAX_DATE
+    result = session.sql(f"""
+        SELECT
+            MIN(ASSESSMENT_DATE) AS MIN_DATE,
+            MAX(ASSESSMENT_DATE) AS MAX_DATE,
+            ARRAY_AGG(DISTINCT MATERIAL) WITHIN GROUP (ORDER BY MATERIAL) AS MATERIALS,
+            ARRAY_AGG(DISTINCT EXCHANGE) WITHIN GROUP (ORDER BY EXCHANGE) AS EXCHANGES
         FROM {TABLE}
         WHERE PRICE_CLOSE_USD_PER_OZ IS NOT NULL
     """).to_pandas()
-    materials = session.sql(f"""
-        SELECT DISTINCT MATERIAL FROM {TABLE}
-        WHERE PRICE_CLOSE_USD_PER_OZ IS NOT NULL ORDER BY MATERIAL
-    """).to_pandas()["MATERIAL"].tolist()
-    exchanges = session.sql(f"""
-        SELECT DISTINCT EXCHANGE FROM {TABLE}
-        WHERE PRICE_CLOSE_USD_PER_OZ IS NOT NULL ORDER BY EXCHANGE
-    """).to_pandas()["EXCHANGE"].tolist()
-    return meta["MIN_DATE"].iloc[0], meta["MAX_DATE"].iloc[0], materials, exchanges
-
+    materials = json.loads(result["MATERIALS"].iloc[0])
+    exchanges = json.loads(result["EXCHANGES"].iloc[0])
+    return result["MIN_DATE"].iloc[0], result["MAX_DATE"].iloc[0], materials, exchanges
 
 min_date_val, max_date_val, all_metals, all_exchanges = load_filter_options()
 min_date = pd.Timestamp(min_date_val).date()
 max_date = pd.Timestamp(max_date_val).date()
 
-date_col1, date_col2, metal_col, exchange_col = st.columns([1, 1, 1, 1])
+date_col1, date_col2, metal_col, exchange_col, chat_col = st.columns([1, 1, 0.88, 0.88, 1.5])
 
 with date_col1:
     date_from = st.date_input("From", value=min_date, min_value=min_date, max_value=max_date)
@@ -51,6 +129,12 @@ with metal_col:
     selected_metal = st.selectbox("Material", ["All"] + all_metals)
 with exchange_col:
     selected_exchange = st.selectbox("Exchange", ["All"] + all_exchanges)
+with chat_col:
+    st.markdown('<div class="floating-chat-container">', unsafe_allow_html=True)
+    if st.button("\U0001f4ac Let's Chat", key="toggle_agent"):
+        st.session_state.show_agent = not st.session_state.show_agent
+        safe_rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 selected_metals = all_metals if selected_metal == "All" else [selected_metal]
 selected_exchanges = all_exchanges if selected_exchange == "All" else [selected_exchange]
@@ -72,7 +156,6 @@ def load_filtered_data(_date_from, _date_to, _metals, _exchanges):
     """).to_pandas()
     df["ASSESSMENT_DATE"] = pd.to_datetime(df["ASSESSMENT_DATE"])
     return df
-
 
 filtered = load_filtered_data(str(date_from), str(date_to), tuple(selected_metals), tuple(selected_exchanges))
 
